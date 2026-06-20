@@ -1,0 +1,43 @@
+name: daleli-lead-hunter
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 22 * * *"   # 1:00 AM Saudi time daily (UTC+3)
+
+permissions:
+  contents: write
+
+jobs:
+  run-hunter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browser
+        run: playwright install --with-deps chromium
+
+      - name: Run lead hunter
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python daleli_lead_hunter.py
+
+      - name: Commit updated database back to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add daleli_leads.db
+          git diff --staged --quiet || git commit -m "Update leads database [skip ci]"
+          git push
